@@ -75,12 +75,16 @@ public class HadashonScraper(HttpClient httpClient, ILogger<HadashonScraper> log
             var listDoc = new HtmlDocument();
             listDoc.LoadHtml(listHtml);
 
+            // Only look for links in the main content area (leftSide), not the nav menu
             var articleLinks = listDoc.DocumentNode
-                .SelectNodes("//a[contains(@href, '/articles/') and not(contains(@href, '/articles/?'))]")
+                .SelectNodes("//div[contains(@class, 'leftSide')]//a[contains(@href, '/articles/')]")
                 ?.Select(a => a.GetAttributeValue("href", ""))
                 .Where(href => href.StartsWith("/articles/") && href.Count(c => c == '/') >= 3)
                 .Distinct()
+                .Take(15) // Limit per page to avoid excessive scraping
                 .ToList() ?? [];
+
+            logger.LogInformation("Found {Count} article links on page {Page}", articleLinks.Count, page);
 
             foreach (var href in articleLinks)
             {
