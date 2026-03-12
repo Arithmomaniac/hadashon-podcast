@@ -47,7 +47,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
       }
       runtime: {
         name: 'dotnet-isolated'
-        version: '10'
+        version: '10.0'
       }
       deployment: {
         storage: {
