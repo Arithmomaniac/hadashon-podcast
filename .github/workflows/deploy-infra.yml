@@ -9,7 +9,7 @@ on:
       environmentName:
         description: 'Environment name (resource prefix)'
         required: true
-        default: 'hadashon'
+        default: 'hadashonil'
       location:
         description: 'Azure region'
         required: true
@@ -42,15 +42,16 @@ jobs:
           region: ${{ inputs.location || 'israelcentral' }}
           template: infra/main.bicep
           parameters: >
-            environmentName=${{ inputs.environmentName || 'hadashon' }}
+            environmentName=${{ inputs.environmentName || 'hadashonil' }}
             location=${{ inputs.location || 'israelcentral' }}
-          deploymentName: hadashon-${{ github.run_number }}
+          deploymentName: ${{ inputs.environmentName || 'hadashonil' }}-${{ github.run_number }}
 
       - name: Enable static website
         shell: bash
         run: |
+          ENVIRONMENT_NAME="${{ inputs.environmentName || 'hadashonil' }}"
           STORAGE_ACCOUNT_NAME=$(az deployment sub show \
-            --name hadashon-${{ github.run_number }} \
+            --name "${ENVIRONMENT_NAME}-${{ github.run_number }}" \
             --query "properties.outputs.storageAccountName.value" \
             --output tsv)
 

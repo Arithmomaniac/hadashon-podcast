@@ -91,11 +91,18 @@ Deployed via GitHub Actions on push to `master`. See `.github/workflows/deploy.y
 
 **First-time setup** (one-time):
 1. `az login`
-2. Deploy infra in `israelcentral` (the source site appears reachable from Israel but not from West Europe): `az deployment sub create --template-file infra/main.bicep --parameters environmentName=hadashon location=israelcentral --location israelcentral`
+2. Deploy infra in `israelcentral` (the source site appears reachable from Israel but not from West Europe): `az deployment sub create --template-file infra/main.bicep --parameters environmentName=hadashonil location=israelcentral --location israelcentral`
 3. Enable static website on the storage account: `az storage blob service-properties update --account-name <storage-account-name> --static-website --index-document index.html --404-document 404.html --auth-mode key`
 4. Create OIDC service principal for GitHub Actions
-5. Set GitHub secrets: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
-6. Set GitHub variable: `AZURE_FUNCTIONAPP_NAME`
+5. Set GitHub secrets:
+   - `AZURE_CLIENT_ID=<your GitHub OIDC app/service principal client id>`
+   - `AZURE_TENANT_ID=78280dbc-df1d-42a5-8c8f-d02ee98f0c2a`
+   - `AZURE_SUBSCRIPTION_ID=d7a97b5d-7bee-4fba-9d45-2059c9ea82eb`
+6. Set GitHub variable:
+   - `AZURE_FUNCTIONAPP_NAME=hadashonil-func`
+7. If you run `Deploy Infrastructure` manually, keep:
+   - `environmentName=hadashonil`
+   - `location=israelcentral`
 
 ## License
 
