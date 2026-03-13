@@ -22,7 +22,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
 }
 
 // Enable static website hosting (for feed.xml)
-resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01' = {
+resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2022-09-01' = {
   parent: storageAccount
   name: 'default'
 }
@@ -71,4 +71,4 @@ resource devTableRbac 'Microsoft.Authorization/roleAssignments@2022-04-01' = if 
 
 output storageAccountName string = storageAccount.name
 output storageAccountId string = storageAccount.id
-output staticWebsiteUrl string = 'https://${storageAccountName}.z6.web.core.windows.net'
+output staticWebsiteUrl string = storageAccount.properties.primaryEndpoints.web

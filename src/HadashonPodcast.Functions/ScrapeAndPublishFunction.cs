@@ -72,8 +72,11 @@ public class ScrapeAndPublishFunction(
 
     private static string GetFeedUrl()
     {
-        // This will be the static website URL; configurable via app settings
-        var storageAccount = Environment.GetEnvironmentVariable("StorageAccountName") ?? "hadashonpodcast";
+        var staticWebsiteUrl = Environment.GetEnvironmentVariable("StaticWebsiteUrl");
+        if (!string.IsNullOrWhiteSpace(staticWebsiteUrl))
+            return $"{staticWebsiteUrl.TrimEnd('/')}/{FeedBlobName}";
+
+        var storageAccount = Environment.GetEnvironmentVariable("StorageAccountName") ?? "hadashonst";
         return $"https://{storageAccount}.z6.web.core.windows.net/{FeedBlobName}";
     }
 }

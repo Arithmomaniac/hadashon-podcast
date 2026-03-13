@@ -6,7 +6,7 @@ targetScope = 'subscription'
 param environmentName string
 
 @description('Azure region for all resources')
-param location string = 'westeurope'
+param location string = 'israelcentral'
 
 @description('Principal ID of the signed-in user (for Storage RBAC during dev). Optional.')
 param principalId string = ''
@@ -52,6 +52,7 @@ module functionApp 'modules/functionapp.bicep' = {
     location: location
     storageAccountName: storage.outputs.storageAccountName
     appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
+    staticWebsiteUrl: storage.outputs.staticWebsiteUrl
   }
 }
 

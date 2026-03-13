@@ -13,7 +13,7 @@ on:
       location:
         description: 'Azure region'
         required: true
-        default: 'westeurope'
+        default: 'israelcentral'
 
 permissions:
   id-token: write
@@ -39,9 +39,24 @@ jobs:
         uses: azure/arm-deploy@v2
         with:
           scope: subscription
-          region: ${{ inputs.location || 'westeurope' }}
+          region: ${{ inputs.location || 'israelcentral' }}
           template: infra/main.bicep
           parameters: >
             environmentName=${{ inputs.environmentName || 'hadashon' }}
-            location=${{ inputs.location || 'westeurope' }}
+            location=${{ inputs.location || 'israelcentral' }}
           deploymentName: hadashon-${{ github.run_number }}
+
+      - name: Enable static website
+        shell: bash
+        run: |
+          STORAGE_ACCOUNT_NAME=$(az deployment sub show \
+            --name hadashon-${{ github.run_number }} \
+            --query "properties.outputs.storageAccountName.value" \
+            --output tsv)
+
+          az storage blob service-properties update \
+            --account-name "$STORAGE_ACCOUNT_NAME" \
+            --static-website \
+            --index-document index.html \
+            --404-document 404.html \
+            --auth-mode key

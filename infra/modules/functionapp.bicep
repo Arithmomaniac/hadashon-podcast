@@ -13,6 +13,9 @@ param storageAccountName string
 @description('Application Insights connection string')
 param appInsightsConnectionString string
 
+@description('Static website endpoint for the storage account')
+param staticWebsiteUrl string
+
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
   name: storageAccountName
 }
@@ -72,6 +75,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'StorageAccountName'
           value: storageAccountName
+        }
+        {
+          name: 'StaticWebsiteUrl'
+          value: staticWebsiteUrl
         }
       ]
     }

@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "azure-mcp": {
+      "type": "local",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@azure/mcp@latest",
+        "server",
+        "start"
+      ],
+      "env": {
+        "npm_config_registry": "https://registry.npmjs.org/"
+      }
+    }
+  }
+}

@@ -91,10 +91,11 @@ Deployed via GitHub Actions on push to `master`. See `.github/workflows/deploy.y
 
 **First-time setup** (one-time):
 1. `az login`
-2. Deploy infra: `az deployment sub create --template-file infra/main.bicep --parameters environmentName=hadashon location=westeurope --location westeurope`
-3. Create OIDC service principal for GitHub Actions
-4. Set GitHub secrets: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
-5. Set GitHub variable: `AZURE_FUNCTIONAPP_NAME`
+2. Deploy infra in `israelcentral` (the source site appears reachable from Israel but not from West Europe): `az deployment sub create --template-file infra/main.bicep --parameters environmentName=hadashon location=israelcentral --location israelcentral`
+3. Enable static website on the storage account: `az storage blob service-properties update --account-name <storage-account-name> --static-website --index-document index.html --404-document 404.html --auth-mode key`
+4. Create OIDC service principal for GitHub Actions
+5. Set GitHub secrets: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`
+6. Set GitHub variable: `AZURE_FUNCTIONAPP_NAME`
 
 ## License
 

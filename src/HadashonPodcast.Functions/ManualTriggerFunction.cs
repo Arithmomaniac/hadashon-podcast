@@ -28,40 +28,57 @@ public class ManualTriggerFunction(
     {
         logger.LogInformation("Manual scrape triggered");
 
-        var table = tableService.GetTableClient(EpisodesTable);
-        await table.CreateIfNotExistsAsync();
-
-        var homepageEpisodes = await scraper.ScrapeHomepageAsync();
-        var articleEpisodes = await scraper.ScrapeArticlesAsync(maxPages: 1);
-
-        var allNew = homepageEpisodes.Concat(articleEpisodes).ToList();
-        foreach (var episode in allNew)
+        try
         {
-            await scraper.PopulateAudioMetadataAsync(episode);
-            await table.UpsertEntityAsync(episode, TableUpdateMode.Merge);
+            var table = tableService.GetTableClient(EpisodesTable);
+            await table.CreateIfNotExistsAsync();
+
+            var homepageEpisodes = await scraper.ScrapeHomepageAsync();
+            var articleEpisodes = await scraper.ScrapeArticlesAsync(maxPages: 1);
+
+            var allNew = homepageEpisodes.Concat(articleEpisodes).ToList();
+            foreach (var episode in allNew)
+            {
+                await scraper.PopulateAudioMetadataAsync(episode);
+                await table.UpsertEntityAsync(episode, TableUpdateMode.Merge);
+            }
+
+            // Read all and generate feed
+            var allEpisodes = new List<EpisodeEntity>();
+            await foreach (var entity in table.QueryAsync<EpisodeEntity>())
+                allEpisodes.Add(entity);
+
+            var staticWebsiteUrl = Environment.GetEnvironmentVariable("StaticWebsiteUrl");
+            var storageAccount = Environment.GetEnvironmentVariable("StorageAccountName") ?? "hadashonst";
+            var baseUrl = string.IsNullOrWhiteSpace(staticWebsiteUrl)
+                ? $"https://{storageAccount}.z6.web.core.windows.net"
+                : staticWebsiteUrl.TrimEnd('/');
+            var selfUrl = $"{baseUrl}/feed.xml";
+            var feedXml = feedGenerator.GenerateFeed(allEpisodes, selfUrl: selfUrl);
+
+            // Write to blob
+            var container = blobService.GetBlobContainerClient("$web");
+            await container.CreateIfNotExistsAsync();
+            var blob = container.GetBlobClient("feed.xml");
+            using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(feedXml));
+            await blob.UploadAsync(stream, new Azure.Storage.Blobs.Models.BlobHttpHeaders
+            {
+                ContentType = "application/rss+xml; charset=utf-8"
+            });
+
+            // Return the feed as response for easy inspection
+            var response = req.CreateResponse(System.Net.HttpStatusCode.OK);
+            response.Headers.Add("Content-Type", "application/rss+xml; charset=utf-8");
+            await response.WriteStringAsync(feedXml);
+            return response;
         }
-
-        // Read all and generate feed
-        var allEpisodes = new List<EpisodeEntity>();
-        await foreach (var entity in table.QueryAsync<EpisodeEntity>())
-            allEpisodes.Add(entity);
-
-        var feedXml = feedGenerator.GenerateFeed(allEpisodes, selfUrl: "http://localhost:7071/feed.xml");
-
-        // Write to blob
-        var container = blobService.GetBlobContainerClient("$web");
-        await container.CreateIfNotExistsAsync();
-        var blob = container.GetBlobClient("feed.xml");
-        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(feedXml));
-        await blob.UploadAsync(stream, new Azure.Storage.Blobs.Models.BlobHttpHeaders
+        catch (Exception ex)
         {
-            ContentType = "application/rss+xml; charset=utf-8"
-        });
-
-        // Return the feed as response for easy inspection
-        var response = req.CreateResponse(System.Net.HttpStatusCode.OK);
-        response.Headers.Add("Content-Type", "application/rss+xml; charset=utf-8");
-        await response.WriteStringAsync(feedXml);
-        return response;
+            logger.LogError(ex, "ManualScrape failed");
+            var errorResponse = req.CreateResponse(System.Net.HttpStatusCode.InternalServerError);
+            errorResponse.Headers.Add("Content-Type", "text/plain; charset=utf-8");
+            await errorResponse.WriteStringAsync("Manual scrape failed. Check Application Insights logs for details.");
+            return errorResponse;
+        }
     }
 }
