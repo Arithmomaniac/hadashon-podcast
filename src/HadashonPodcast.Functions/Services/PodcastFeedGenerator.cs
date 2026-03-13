@@ -52,10 +52,14 @@ public class PodcastFeedGenerator
 
     private static XElement BuildItem(EpisodeEntity episode)
     {
-        // Build description: full text + glossary
+        // FullText already includes the glossary from the page scrape;
+        // only append Glossary separately if FullText doesn't contain it
         var description = episode.FullText;
-        if (!string.IsNullOrWhiteSpace(episode.Glossary))
+        if (!string.IsNullOrWhiteSpace(episode.Glossary)
+            && !description.Contains(episode.Glossary.Trim()[..Math.Min(40, episode.Glossary.Trim().Length)]))
+        {
             description += "\n\nביאורי מילים:\n" + episode.Glossary;
+        }
 
         var categoryLabel = episode.ContentType switch
         {
