@@ -24,8 +24,8 @@ public class HadashonScraper(HttpClient httpClient, ILogger<HadashonScraper> log
         var audioContainers = doc.DocumentNode.SelectNodes("//div[contains(@class, 'audio-player-container')]");
         if (audioContainers is null) return episodes;
 
-        var today = DateTimeOffset.UtcNow;
-        var dateKey = today.ToString("yyyy-MM-dd");
+        // Extract the displayed Gregorian date from the homepage text
+        var homepageDate = ExtractGregorianDateFromText(doc.DocumentNode.InnerText);
 
         for (int i = 0; i < audioContainers.Count; i++)
         {
@@ -35,18 +35,20 @@ public class HadashonScraper(HttpClient httpClient, ILogger<HadashonScraper> log
             var audioUrl = source.GetAttributeValue("src", "");
             if (string.IsNullOrEmpty(audioUrl)) continue;
 
-            // Determine content type from filename pattern
             var (contentType, title) = ClassifyHomepageAudio(audioUrl, i);
-
-            // Extract the text content that follows this audio player
             var textContent = ExtractFollowingText(audioContainers[i]);
+
+            var publishDate = ParseDate(homepageDate)
+                ?? ParseDateFromAudioUrl(audioUrl)
+                ?? DateTimeOffset.UtcNow;
+            var dateKey = publishDate.ToString("yyyy-MM-dd");
 
             var episode = new EpisodeEntity
             {
                 PartitionKey = contentType,
                 RowKey = $"{dateKey}_{contentType}",
                 Title = title,
-                PublishDate = today,
+                PublishDate = publishDate,
                 AudioUrl = audioUrl,
                 ArticleUrl = BaseUrl + "/",
                 FullText = textContent,
@@ -123,9 +125,11 @@ public class HadashonScraper(HttpClient httpClient, ILogger<HadashonScraper> log
         var titleNode = doc.DocumentNode.SelectSingleNode("//title");
         var title = WebUtility.HtmlDecode(titleNode?.InnerText?.Trim() ?? "");
 
-        // Extract publication date from the page
+        // Extract publication date from the page, audio URL, or fall back to now
         var dateText = ExtractDateFromPage(doc);
-        var publishDate = ParseHebrewDate(dateText) ?? DateTimeOffset.UtcNow;
+        var publishDate = ParseDate(dateText)
+            ?? ParseDateFromAudioUrl(audioUrl)
+            ?? DateTimeOffset.UtcNow;
 
         // Extract full article body
         var bodyNode = doc.DocumentNode.SelectSingleNode("//div[contains(@class, 'introBlock')]");
@@ -187,25 +191,121 @@ public class HadashonScraper(HttpClient httpClient, ILogger<HadashonScraper> log
 
     private static string ExtractDateFromPage(HtmlDocument doc)
     {
-        // Look for date in the page content
-        var dateNode = doc.DocumentNode.SelectSingleNode("//div[contains(@class, 'date')]")
-            ?? doc.DocumentNode.SelectSingleNode("//span[contains(@class, 'date')]");
-        return dateNode?.InnerText?.Trim() ?? "";
+        // Try machine-readable date first
+        var timeNode = doc.DocumentNode.SelectSingleNode("//time[@datetime]");
+        if (timeNode is not null)
+        {
+            var dt = timeNode.GetAttributeValue("datetime", "");
+            if (!string.IsNullOrWhiteSpace(dt)) return dt.Trim();
+        }
+
+        // Try meta tags
+        var metaNode = doc.DocumentNode.SelectSingleNode("//meta[@property='article:published_time']")
+            ?? doc.DocumentNode.SelectSingleNode("//meta[@name='publish_date']");
+        if (metaNode is not null)
+        {
+            var content = metaNode.GetAttributeValue("content", "");
+            if (!string.IsNullOrWhiteSpace(content)) return content.Trim();
+        }
+
+        // Try visible date elements
+        var dateNode = doc.DocumentNode.SelectSingleNode(
+            "//*[contains(@class,'date') or contains(@class,'publish') or contains(@class,'posted')]");
+        if (dateNode is not null)
+        {
+            var text = WebUtility.HtmlDecode(dateNode.InnerText ?? "").Trim();
+            if (!string.IsNullOrWhiteSpace(text)) return text;
+        }
+
+        // Fall back to regex search in page text
+        return ExtractGregorianDateFromText(doc.DocumentNode.InnerText);
     }
 
-    private static DateTimeOffset? ParseHebrewDate(string dateText)
+    private static readonly Dictionary<string, int> HebrewMonths = new()
+    {
+        ["ינואר"] = 1, ["פברואר"] = 2, ["מרץ"] = 3,
+        ["אפריל"] = 4, ["מאי"] = 5, ["יוני"] = 6,
+        ["יולי"] = 7, ["אוגוסט"] = 8, ["ספטמבר"] = 9,
+        ["אוקטובר"] = 10, ["נובמבר"] = 11, ["דצמבר"] = 12,
+    };
+
+    private static readonly string HebrewMonthPattern =
+        string.Join("|", HebrewMonths.Keys);
+
+    /// <summary>
+    /// Searches raw text for a Gregorian date like "12 במרץ 2026" or "10/03/2026".
+    /// </summary>
+    private static string ExtractGregorianDateFromText(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return "";
+        text = WebUtility.HtmlDecode(text);
+
+        // Try "12 במרץ 2026"
+        var hebrewMatch = System.Text.RegularExpressions.Regex.Match(
+            text, $@"\b(\d{{1,2}})\s+ב({HebrewMonthPattern})\s+(\d{{4}})\b");
+        if (hebrewMatch.Success) return hebrewMatch.Value;
+
+        // Try dd/MM/yyyy
+        var numericMatch = System.Text.RegularExpressions.Regex.Match(text, @"\b\d{1,2}/\d{1,2}/\d{4}\b");
+        if (numericMatch.Success) return numericMatch.Value;
+
+        return "";
+    }
+
+    /// <summary>
+    /// Parses multiple date formats: ISO, dd/MM/yyyy, and "12 במרץ 2026".
+    /// </summary>
+    private static DateTimeOffset? ParseDate(string? dateText)
     {
         if (string.IsNullOrWhiteSpace(dateText)) return null;
+        dateText = WebUtility.HtmlDecode(dateText).Trim();
 
-        // Try to extract a date like "10 במרץ 2026" or "10/03/2026"
-        var match = System.Text.RegularExpressions.Regex.Match(dateText, @"(\d{1,2})/(\d{1,2})/(\d{4})");
-        if (match.Success &&
-            int.TryParse(match.Groups[1].Value, out var day) &&
-            int.TryParse(match.Groups[2].Value, out var month) &&
-            int.TryParse(match.Groups[3].Value, out var year))
+        // ISO / machine-readable
+        if (DateTimeOffset.TryParse(dateText, out var isoDate))
+            return isoDate;
+
+        // dd/MM/yyyy
+        var numericMatch = System.Text.RegularExpressions.Regex.Match(dateText, @"\b(\d{1,2})/(\d{1,2})/(\d{4})\b");
+        if (numericMatch.Success &&
+            int.TryParse(numericMatch.Groups[1].Value, out var day) &&
+            int.TryParse(numericMatch.Groups[2].Value, out var month) &&
+            int.TryParse(numericMatch.Groups[3].Value, out var year))
         {
             return new DateTimeOffset(year, month, day, 0, 0, 0, TimeSpan.FromHours(2));
         }
+
+        // Hebrew month names: "12 במרץ 2026"
+        var hebrewMatch = System.Text.RegularExpressions.Regex.Match(
+            dateText, $@"\b(\d{{1,2}})\s+ב({HebrewMonthPattern})\s+(\d{{4}})\b");
+        if (hebrewMatch.Success &&
+            int.TryParse(hebrewMatch.Groups[1].Value, out day) &&
+            int.TryParse(hebrewMatch.Groups[3].Value, out year) &&
+            HebrewMonths.TryGetValue(hebrewMatch.Groups[2].Value, out month))
+        {
+            return new DateTimeOffset(year, month, day, 0, 0, 0, TimeSpan.FromHours(2));
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Extracts a date from audio URLs like /hadshon/2026/3/8.3hadshon.mp3
+    /// </summary>
+    private static DateTimeOffset? ParseDateFromAudioUrl(string? audioUrl)
+    {
+        if (string.IsNullOrWhiteSpace(audioUrl)) return null;
+
+        var match = System.Text.RegularExpressions.Regex.Match(
+            audioUrl, @"/hadshon/(\d{4})/(\d{1,2})/(\d{1,2})\.\d{1,2}");
+        if (!match.Success) return null;
+
+        if (int.TryParse(match.Groups[1].Value, out var year) &&
+            int.TryParse(match.Groups[2].Value, out var month) &&
+            int.TryParse(match.Groups[3].Value, out var day))
+        {
+            return new DateTimeOffset(year, month, day, 0, 0, 0, TimeSpan.FromHours(2));
+        }
+
         return null;
     }
 
@@ -221,7 +321,8 @@ public class HadashonScraper(HttpClient httpClient, ILogger<HadashonScraper> log
     }
 
     /// <summary>
-    /// Fetches audio file metadata (Content-Length) via HTTP HEAD.
+    /// Fetches audio file metadata (Content-Length, Last-Modified) via HTTP HEAD.
+    /// Updates PublishDate from Last-Modified if it was previously set to a fallback value.
     /// </summary>
     public async Task PopulateAudioMetadataAsync(EpisodeEntity episode)
     {
@@ -229,9 +330,14 @@ public class HadashonScraper(HttpClient httpClient, ILogger<HadashonScraper> log
         {
             using var request = new HttpRequestMessage(HttpMethod.Head, episode.AudioUrl);
             using var response = await httpClient.SendAsync(request);
-            if (response.IsSuccessStatusCode && response.Content.Headers.ContentLength.HasValue)
+            if (response.IsSuccessStatusCode)
             {
-                episode.AudioContentLength = response.Content.Headers.ContentLength.Value;
+                if (response.Content.Headers.ContentLength.HasValue)
+                    episode.AudioContentLength = response.Content.Headers.ContentLength.Value;
+
+                // Use Last-Modified as the authoritative publish timestamp
+                if (response.Content.Headers.LastModified.HasValue)
+                    episode.PublishDate = response.Content.Headers.LastModified.Value;
             }
         }
         catch (Exception ex)

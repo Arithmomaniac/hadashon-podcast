@@ -38,8 +38,10 @@ public class ScrapeAndPublishFunction(
         var upserted = 0;
         foreach (var episode in allNew)
         {
-            // Fetch audio metadata (Content-Length)
             await scraper.PopulateAudioMetadataAsync(episode);
+            // Re-derive RowKey from the authoritative publish date
+            var slug = episode.RowKey.Contains('_') ? episode.RowKey[(episode.RowKey.IndexOf('_') + 1)..] : episode.RowKey;
+            episode.RowKey = $"{episode.PublishDate:yyyy-MM-dd}_{slug}";
 
             await table.UpsertEntityAsync(episode, TableUpdateMode.Merge);
             upserted++;
