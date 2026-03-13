@@ -315,9 +315,17 @@ public class HadashonScraper(HttpClient httpClient, ILogger<HadashonScraper> log
         // Remove script/style elements
         foreach (var script in node.SelectNodes(".//script|.//style") ?? Enumerable.Empty<HtmlNode>())
             script.Remove();
-        // Get inner text, decode HTML entities, normalize whitespace
+
+        // Insert newlines for block elements to preserve paragraph structure
+        foreach (var block in node.SelectNodes(".//p|.//br|.//div|.//li|.//tr|.//h1|.//h2|.//h3|.//h4|.//h5|.//h6") ?? Enumerable.Empty<HtmlNode>())
+            block.InnerHtml = "\n" + block.InnerHtml;
+
         var text = WebUtility.HtmlDecode(node.InnerText);
-        return System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim();
+        // Normalize runs of spaces/tabs within lines, but preserve newlines
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"[^\S\n]+", " ");
+        // Collapse 3+ consecutive newlines to 2
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\n{3,}", "\n\n");
+        return text.Trim();
     }
 
     /// <summary>

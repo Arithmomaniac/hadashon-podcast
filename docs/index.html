@@ -63,7 +63,14 @@
     .episode audio { width: 100%; height: 36px; }
     .episode-desc {
       font-size: 0.85rem; color: var(--muted); margin-top: 8px;
+      white-space: pre-line;
+    }
+    .episode-desc.collapsed {
       display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .episode-toggle {
+      background: none; border: none; color: var(--accent); cursor: pointer;
+      font-size: 0.85rem; padding: 4px 0; margin-top: 4px;
     }
     .loading { text-align: center; color: var(--muted); padding: 32px 0; }
 
@@ -157,11 +164,14 @@
 
           const el = document.createElement('div');
           el.className = 'episode';
+
+          const descId = `desc-${i}`;
           el.innerHTML = `
             <div class="episode-title">${esc(title)}</div>
             ${date ? `<div class="episode-date">${esc(date)}</div>` : ''}
             ${audioUrl ? `<audio controls preload="none"><source src="${esc(audioUrl)}" type="${esc(audioType)}"></audio>` : ''}
-            <div class="episode-desc">${esc(truncate(desc, 200))}</div>
+            <div class="episode-desc collapsed" id="${descId}">${esc(desc)}</div>
+            ${desc.length > 100 ? `<button class="episode-toggle" onclick="toggleDesc('${descId}', this)">הצג עוד ▼</button>` : ''}
           `;
           container.appendChild(el);
         }
@@ -181,8 +191,10 @@
       return d.innerHTML;
     }
 
-    function truncate(s, n) {
-      return s.length > n ? s.slice(0, n) + '…' : s;
+    function toggleDesc(id, btn) {
+      const el = document.getElementById(id);
+      const collapsed = el.classList.toggle('collapsed');
+      btn.textContent = collapsed ? 'הצג עוד ▼' : 'הצג פחות ▲';
     }
 
     function copyFeedUrl() {
