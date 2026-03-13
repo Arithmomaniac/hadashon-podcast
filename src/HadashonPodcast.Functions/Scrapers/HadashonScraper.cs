@@ -38,6 +38,10 @@ public class HadashonScraper(HttpClient httpClient, ILogger<HadashonScraper> log
             var (contentType, title) = ClassifyHomepageAudio(audioUrl, i);
             var textContent = ExtractFollowingText(audioContainers[i]);
 
+            // Daily broadcast text lives in headline items, not as siblings of the audio player
+            if (string.IsNullOrWhiteSpace(textContent) && contentType == ContentTypes.Daily)
+                textContent = ExtractHeadlines(doc);
+
             var publishDate = ParseDate(homepageDate)
                 ?? ParseDateFromAudioUrl(audioUrl)
                 ?? DateTimeOffset.UtcNow;
@@ -186,7 +190,46 @@ public class HadashonScraper(HttpClient httpClient, ILogger<HadashonScraper> log
                 texts.Add(text);
             sibling = sibling.NextSibling;
         }
+
+        // If no text found as siblings, look for parent's following content
+        // (daily broadcast audio is in a wrapper; headlines are in separate items)
+        if (texts.Count == 0)
+        {
+            var parent = audioContainer.ParentNode;
+            if (parent is not null)
+            {
+                sibling = parent.NextSibling;
+                while (sibling is not null)
+                {
+                    if (sibling.NodeType == HtmlNodeType.Element &&
+                        sibling.HasClass("audio-player-container"))
+                        break;
+
+                    var text = CleanHtmlToText(sibling);
+                    if (!string.IsNullOrWhiteSpace(text))
+                        texts.Add(text);
+                    sibling = sibling.NextSibling;
+                }
+            }
+        }
+
         return string.Join("\n\n", texts);
+    }
+
+    /// <summary>
+    /// Extracts the daily news headlines from the homepage.
+    /// </summary>
+    private static string ExtractHeadlines(HtmlDocument doc)
+    {
+        var headlines = doc.DocumentNode.SelectNodes("//div[contains(@class, 'headlines-item')]//h3[contains(@class, 'noteTitle')]");
+        if (headlines is null || headlines.Count == 0) return "";
+
+        var texts = headlines
+            .Select(h => System.Net.WebUtility.HtmlDecode(h.InnerText ?? "").Trim())
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select((t, i) => $"• {t}");
+
+        return string.Join("\n", texts);
     }
 
     private static string ExtractDateFromPage(HtmlDocument doc)
