@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>חדשון בעברית קלה – פודקאסט</title>
+  <style>
+    :root {
+      --bg: #faf9f6;
+      --card: #fff;
+      --accent: #1a73e8;
+      --text: #222;
+      --muted: #666;
+      --border: #e0e0e0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 0 16px;
+    }
+    .container { max-width: 640px; margin: 0 auto; padding: 40px 0; }
+
+    header { text-align: center; margin-bottom: 32px; }
+    header h1 { font-size: 2rem; margin-bottom: 8px; }
+    header p { color: var(--muted); font-size: 1.05rem; max-width: 480px; margin: 0 auto; }
+
+    .subscribe { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 24px 0; }
+    .subscribe a {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--accent); color: #fff;
+      padding: 10px 18px; border-radius: 8px;
+      text-decoration: none; font-size: 0.95rem; font-weight: 500;
+      transition: opacity 0.15s;
+    }
+    .subscribe a:hover { opacity: 0.85; }
+    .subscribe a.rss { background: #ee802f; }
+    .subscribe a.overcast { background: #fc3d39; }
+    .subscribe a.copy { background: #555; cursor: pointer; }
+    .subscribe a svg { width: 18px; height: 18px; fill: currentColor; }
+
+    .player-section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin: 28px 0;
+    }
+    .player-section h2 { font-size: 1.15rem; margin-bottom: 16px; }
+    .episode {
+      border-bottom: 1px solid var(--border);
+      padding: 14px 0;
+    }
+    .episode:last-child { border-bottom: none; }
+    .episode-title {
+      font-size: 0.95rem; font-weight: 600;
+      margin-bottom: 6px;
+      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .episode-date { font-size: 0.8rem; color: var(--muted); margin-bottom: 8px; }
+    .episode audio { width: 100%; height: 36px; }
+    .episode-desc {
+      font-size: 0.85rem; color: var(--muted); margin-top: 8px;
+      display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .loading { text-align: center; color: var(--muted); padding: 32px 0; }
+
+    .about {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin: 28px 0;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+    .about h2 { color: var(--text); font-size: 1.05rem; margin-bottom: 8px; }
+
+    footer { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 40px; padding-bottom: 24px; }
+    footer a { color: var(--accent); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎙️ חדשון בעברית קלה</h1>
+      <p>חדשות בעברית קלה עם ניקוד – כפודקאסט. חדשון יומי, תחזית מזג האוויר, פרשת השבוע, והרחבות למאמרים.</p>
+    </header>
+
+    <div class="subscribe">
+      <a class="rss" href="https://hadashonilst.z39.web.core.windows.net/feed.xml" title="RSS Feed">
+        <svg viewBox="0 0 24 24"><path d="M6.18 15.64a2.18 2.18 0 1 1 0 4.36 2.18 2.18 0 0 1 0-4.36M4 4.44A15.56 15.56 0 0 1 19.56 20h-2.83A12.73 12.73 0 0 0 4 7.27V4.44m0 5.66a9.9 9.9 0 0 1 9.9 9.9h-2.83A7.07 7.07 0 0 0 4 12.93V10.1"/></svg>
+        RSS
+      </a>
+      <a href="podcast://hadashonilst.z39.web.core.windows.net/feed.xml" title="Apple Podcasts">
+        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3a4.5 4.5 0 0 1 4.5 4.5c0 1.4-.65 2.66-1.66 3.48l-.84 3.02a2 2 0 0 1-3.98 0l-.84-3.02A4.49 4.49 0 0 1 7.5 9.5 4.5 4.5 0 0 1 12 5zm0 3a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>
+        Apple
+      </a>
+      <a class="overcast" href="https://overcast.fm/itunes_url/hadashonilst.z39.web.core.windows.net/feed.xml" title="Overcast">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 6v6l4 2"/></svg>
+        Overcast
+      </a>
+      <a class="copy" onclick="copyFeedUrl()" title="העתק כתובת RSS">
+        <svg viewBox="0 0 24 24"><path d="M16 1H4a2 2 0 0 0-2 2v14h2V3h12V1zm3 4H8a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2zm0 16H8V7h11v14z"/></svg>
+        העתק קישור
+      </a>
+    </div>
+
+    <div class="player-section">
+      <h2>פרקים אחרונים</h2>
+      <div id="episodes"><div class="loading">טוען פרקים…</div></div>
+    </div>
+
+    <div class="about">
+      <h2>מה זה?</h2>
+      <p>
+        פודקאסט אוטומטי שמייצר פרקים מתוך אתר
+        <a href="https://hadshon.education.gov.il/" target="_blank">החדשון</a>
+        של משרד החינוך. כל פרק כולל את ההקלטה המקורית ואת הטקסט המלא עם ניקוד בתיאור – מתאים במיוחד ללומדי עברית.
+      </p>
+    </div>
+
+    <footer>
+      מופעל ע״י <a href="https://github.com/Arithmomaniac/hadashon-podcast" target="_blank">hadashon-podcast</a>
+      · תוכן מקור: <a href="https://hadshon.education.gov.il/" target="_blank">משרד החינוך</a>
+    </footer>
+  </div>
+
+  <script>
+    const FEED_URL = 'https://hadashonilst.z39.web.core.windows.net/feed.xml';
+    const MAX_EPISODES = 5;
+
+    async function loadEpisodes() {
+      try {
+        const resp = await fetch(FEED_URL);
+        const text = await resp.text();
+        const doc = new DOMParser().parseFromString(text, 'application/xml');
+        const items = doc.querySelectorAll('item');
+        const container = document.getElementById('episodes');
+        container.innerHTML = '';
+
+        const shown = Math.min(items.length, MAX_EPISODES);
+        for (let i = 0; i < shown; i++) {
+          const item = items[i];
+          const title = item.querySelector('title')?.textContent || '';
+          const desc = item.querySelector('description')?.textContent || '';
+          const pubDate = item.querySelector('pubDate')?.textContent || '';
+          const enclosure = item.querySelector('enclosure');
+          const audioUrl = enclosure?.getAttribute('url') || '';
+          const audioType = enclosure?.getAttribute('type') || 'audio/mpeg';
+
+          const date = pubDate ? new Date(pubDate).toLocaleDateString('he-IL', {
+            year: 'numeric', month: 'long', day: 'numeric'
+          }) : '';
+
+          const el = document.createElement('div');
+          el.className = 'episode';
+          el.innerHTML = `
+            <div class="episode-title">${esc(title)}</div>
+            ${date ? `<div class="episode-date">${esc(date)}</div>` : ''}
+            ${audioUrl ? `<audio controls preload="none"><source src="${esc(audioUrl)}" type="${esc(audioType)}"></audio>` : ''}
+            <div class="episode-desc">${esc(truncate(desc, 200))}</div>
+          `;
+          container.appendChild(el);
+        }
+
+        if (shown === 0) {
+          container.innerHTML = '<div class="loading">אין פרקים עדיין</div>';
+        }
+      } catch (e) {
+        document.getElementById('episodes').innerHTML =
+          '<div class="loading">לא ניתן לטעון פרקים כרגע</div>';
+      }
+    }
+
+    function esc(s) {
+      const d = document.createElement('div');
+      d.textContent = s;
+      return d.innerHTML;
+    }
+
+    function truncate(s, n) {
+      return s.length > n ? s.slice(0, n) + '…' : s;
+    }
+
+    function copyFeedUrl() {
+      navigator.clipboard.writeText(FEED_URL).then(() => {
+        const btn = document.querySelector('.copy');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '✓ הועתק!';
+        setTimeout(() => btn.innerHTML = orig, 2000);
+      });
+    }
+
+    loadEpisodes();
+  </script>
+</body>
+</html>
