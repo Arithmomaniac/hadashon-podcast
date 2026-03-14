@@ -11,6 +11,9 @@ param location string = 'israelcentral'
 @description('Principal ID of the signed-in user (for Storage RBAC during dev). Optional.')
 param principalId string = ''
 
+@description('Email address for alert notifications')
+param alertEmail string = 'handspring98118@gmail.com'
+
 var resourceGroupName = '${environmentName}-rg'
 var storageAccountName = replace(toLower('${environmentName}st'), '-', '')
 var functionAppName = '${environmentName}-func'
@@ -53,6 +56,17 @@ module functionApp 'modules/functionapp.bicep' = {
     storageAccountName: storage.outputs.storageAccountName
     appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
     staticWebsiteUrl: storage.outputs.staticWebsiteUrl
+  }
+}
+
+module alerts 'modules/alerts.bicep' = {
+  name: 'alerts'
+  scope: rg
+  params: {
+    appInsightsId: monitoring.outputs.appInsightsId
+    location: location
+    alertEmail: alertEmail
+    functionAppName: functionAppName
   }
 }
 

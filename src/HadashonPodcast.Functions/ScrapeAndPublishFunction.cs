@@ -36,6 +36,13 @@ public class ScrapeAndPublishFunction(
         // 3. Upsert all new episodes to Table Storage
         var allNew = homepageEpisodes.Concat(articleEpisodes).ToList();
         var upserted = 0;
+        var upsertFailed = 0;
+
+        if (allNew.Count == 0)
+        {
+            logger.LogWarning("No new episodes scraped — homepage or article structure may have changed");
+        }
+
         foreach (var episode in allNew)
         {
             await scraper.PopulateAudioMetadataAsync(episode);
@@ -43,10 +50,18 @@ public class ScrapeAndPublishFunction(
             var slug = episode.RowKey.Contains('_') ? episode.RowKey[(episode.RowKey.IndexOf('_') + 1)..] : episode.RowKey;
             episode.RowKey = $"{episode.PublishDate:yyyy-MM-dd}_{slug}";
 
-            await table.UpsertEntityAsync(episode, TableUpdateMode.Merge);
-            upserted++;
+            try
+            {
+                await table.UpsertEntityAsync(episode, TableUpdateMode.Merge);
+                upserted++;
+            }
+            catch (Exception ex)
+            {
+                upsertFailed++;
+                logger.LogError(ex, "Table Storage upsert failed for {Title} ({RowKey})", episode.Title, episode.RowKey);
+            }
         }
-        logger.LogInformation("Upserted {Count} episodes to Table Storage", upserted);
+        logger.LogInformation("Upserted {Count} episodes to Table Storage ({Failed} failed)", upserted, upsertFailed);
 
         // 4. Read all episodes from Table Storage and generate RSS
         var allEpisodes = new List<EpisodeEntity>();
@@ -60,16 +75,23 @@ public class ScrapeAndPublishFunction(
         var feedXml = feedGenerator.GenerateFeed(allEpisodes, selfUrl: GetFeedUrl());
 
         // 6. Upload to Blob Storage ($web container for static website)
-        var container = blobService.GetBlobContainerClient(FeedContainer);
-        await container.CreateIfNotExistsAsync();
-        var blob = container.GetBlobClient(FeedBlobName);
-        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(feedXml));
-        await blob.UploadAsync(stream, new Azure.Storage.Blobs.Models.BlobHttpHeaders
+        try
         {
-            ContentType = "application/rss+xml; charset=utf-8"
-        });
-
-        logger.LogInformation("Published feed.xml with {Count} episodes", allEpisodes.Count);
+            var container = blobService.GetBlobContainerClient(FeedContainer);
+            await container.CreateIfNotExistsAsync();
+            var blob = container.GetBlobClient(FeedBlobName);
+            using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(feedXml));
+            await blob.UploadAsync(stream, new Azure.Storage.Blobs.Models.BlobHttpHeaders
+            {
+                ContentType = "application/rss+xml; charset=utf-8"
+            });
+            logger.LogInformation("Published feed.xml with {Count} episodes", allEpisodes.Count);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to upload feed.xml to blob storage");
+            throw;
+        }
     }
 
     private static string GetFeedUrl()

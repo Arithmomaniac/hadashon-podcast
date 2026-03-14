@@ -43,7 +43,14 @@ public class ManualTriggerFunction(
                 // Re-derive RowKey from the authoritative publish date
                 var slug = episode.RowKey.Contains('_') ? episode.RowKey[(episode.RowKey.IndexOf('_') + 1)..] : episode.RowKey;
                 episode.RowKey = $"{episode.PublishDate:yyyy-MM-dd}_{slug}";
-                await table.UpsertEntityAsync(episode, TableUpdateMode.Merge);
+                try
+                {
+                    await table.UpsertEntityAsync(episode, TableUpdateMode.Merge);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Table Storage upsert failed for {Title} ({RowKey})", episode.Title, episode.RowKey);
+                }
             }
 
             // Read all and generate feed
@@ -60,14 +67,22 @@ public class ManualTriggerFunction(
             var feedXml = feedGenerator.GenerateFeed(allEpisodes, selfUrl: selfUrl);
 
             // Write to blob
-            var container = blobService.GetBlobContainerClient("$web");
-            await container.CreateIfNotExistsAsync();
-            var blob = container.GetBlobClient("feed.xml");
-            using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(feedXml));
-            await blob.UploadAsync(stream, new Azure.Storage.Blobs.Models.BlobHttpHeaders
+            try
             {
-                ContentType = "application/rss+xml; charset=utf-8"
-            });
+                var container = blobService.GetBlobContainerClient("$web");
+                await container.CreateIfNotExistsAsync();
+                var blob = container.GetBlobClient("feed.xml");
+                using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(feedXml));
+                await blob.UploadAsync(stream, new Azure.Storage.Blobs.Models.BlobHttpHeaders
+                {
+                    ContentType = "application/rss+xml; charset=utf-8"
+                });
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Failed to upload feed.xml to blob storage");
+                throw;
+            }
 
             // Return the feed as response for easy inspection
             var response = req.CreateResponse(System.Net.HttpStatusCode.OK);

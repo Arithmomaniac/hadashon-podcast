@@ -22,7 +22,11 @@ public class HadashonScraper(HttpClient httpClient, ILogger<HadashonScraper> log
         doc.LoadHtml(html);
 
         var audioContainers = doc.DocumentNode.SelectNodes("//div[contains(@class, 'audio-player-container')]");
-        if (audioContainers is null) return episodes;
+        if (audioContainers is null)
+        {
+            logger.LogWarning("No audio-player-container elements found on homepage — page structure may have changed");
+            return episodes;
+        }
 
         // Extract the displayed Gregorian date from the homepage text
         var homepageDate = ExtractGregorianDateFromText(doc.DocumentNode.InnerText);
