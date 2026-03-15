@@ -135,7 +135,7 @@ resource audioStubAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-previ
         }
       ]
     }
-    autoMitigate: true
+    autoMitigate: false
     actions: {
       actionGroups: [actionGroup.id]
     }
