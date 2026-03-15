@@ -387,8 +387,26 @@ public class HadashonScraper(HttpClient httpClient, ILogger<HadashonScraper> log
             using var response = await httpClient.SendAsync(request);
             if (response.IsSuccessStatusCode)
             {
-                if (response.Content.Headers.ContentLength.HasValue)
-                    episode.AudioContentLength = response.Content.Headers.ContentLength.Value;
+                var contentType = response.Content.Headers.ContentType?.MediaType;
+                var contentLength = response.Content.Headers.ContentLength;
+
+                // Detect stub/placeholder files (e.g. empty HTML pages served instead of audio)
+                if (contentType is not null && contentType.StartsWith("text/", StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogWarning("Audio URL returned non-audio content type {ContentType} — possible stub or URL format change: {Url}",
+                        contentType, episode.AudioUrl);
+                    return;
+                }
+
+                if (contentLength.HasValue && contentLength.Value < 1000)
+                {
+                    logger.LogWarning("Audio URL returned suspiciously small file ({ContentLength} bytes) — possible stub: {Url}",
+                        contentLength.Value, episode.AudioUrl);
+                    return;
+                }
+
+                if (contentLength.HasValue)
+                    episode.AudioContentLength = contentLength.Value;
 
                 // Use Last-Modified as the authoritative publish timestamp
                 if (response.Content.Headers.LastModified.HasValue)

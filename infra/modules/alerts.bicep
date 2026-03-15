@@ -101,3 +101,43 @@ resource errorLogAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-previe
     }
   }
 }
+
+// Alert: Audio stub/placeholder detection.
+// Fires when audio URLs return non-audio content or tiny files, indicating
+// the source site has changed its URL format or is serving error pages.
+resource audioStubAlert 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = {
+  name: '${functionAppName}-audio-stubs'
+  location: location
+  properties: {
+    displayName: '${functionAppName}: Audio URL stubs detected'
+    description: 'Audio URLs are returning non-audio content or tiny files — the source site may have changed its URL format.'
+    severity: 2
+    enabled: true
+    evaluationFrequency: 'P1D'
+    windowSize: 'P1D'
+    scopes: [appInsightsId]
+    criteria: {
+      allOf: [
+        {
+          query: '''
+            traces
+            | where message has "possible stub"
+            | project timestamp, url = tostring(customDimensions["Url"])
+            | summarize stubCount = count(), urls = make_set(url, 20) by bin(timestamp, 1d)
+          '''
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+          failingPeriods: {
+            numberOfEvaluationPeriods: 1
+            minFailingPeriodsToAlert: 1
+          }
+        }
+      ]
+    }
+    autoMitigate: true
+    actions: {
+      actionGroups: [actionGroup.id]
+    }
+  }
+}
