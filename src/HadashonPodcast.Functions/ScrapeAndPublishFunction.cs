@@ -31,10 +31,10 @@ public class ScrapeAndPublishFunction(
 
     /// <summary>
     /// Aggressive trigger — runs every 15 minutes during the Hadashon publish window
-    /// (5–8 UTC / 7–10 IST, Sun–Thu only).
+    /// (5–9 UTC / 7–11 IST, Sun–Thu only). Extra hour to catch HTML updates after audio.
     /// </summary>
     [Function("ScrapeAndPublishAggressive")]
-    public async Task RunAggressive([TimerTrigger("0 */15 5-8 * * 0-4")] TimerInfo timerInfo)
+    public async Task RunAggressive([TimerTrigger("0 */15 5-9 * * 0-4")] TimerInfo timerInfo)
     {
         await ScrapeAndPublishAsync();
     }
