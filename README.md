@@ -1,4 +1,4 @@
-# HaDashon Podcast
+# Hadashon Podcast
 
 Turn [hadshon.education.gov.il](https://hadshon.education.gov.il/) — the Israeli Ministry of Education's simplified Hebrew news site (with nikud) — into a podcast feed, hosted on cheap serverless Azure resources.
 
@@ -6,7 +6,7 @@ Turn [hadshon.education.gov.il](https://hadshon.education.gov.il/) — the Israe
 
 An Azure Function runs every 3 hours to:
 
-1. **Scrape** the HaDashon website for new content and audio
+1. **Scrape** the Hadashon website for new content and audio
 2. **Store** episode data in Azure Table Storage
 3. **Generate** a podcast RSS feed
 4. **Publish** the feed to Azure Blob Storage (static website)
