@@ -19,8 +19,27 @@ public class ScrapeAndPublishFunction(
     private const string FeedContainer = "$web";
     private const string FeedBlobName = "feed.xml";
 
+    /// <summary>
+    /// Background trigger — runs twice daily (midnight and noon UTC) to catch any content
+    /// published outside the normal morning window.
+    /// </summary>
     [Function("ScrapeAndPublish")]
-    public async Task Run([TimerTrigger("0 0 */3 * * *")] TimerInfo timerInfo)
+    public async Task Run([TimerTrigger("0 0 0,12 * * *")] TimerInfo timerInfo)
+    {
+        await ScrapeAndPublishAsync();
+    }
+
+    /// <summary>
+    /// Aggressive trigger — runs every 15 minutes during the Hadashon publish window
+    /// (5–8 UTC / 7–10 IST, Sun–Thu only).
+    /// </summary>
+    [Function("ScrapeAndPublishAggressive")]
+    public async Task RunAggressive([TimerTrigger("0 */15 5-8 * * 0-4")] TimerInfo timerInfo)
+    {
+        await ScrapeAndPublishAsync();
+    }
+
+    private async Task ScrapeAndPublishAsync()
     {
         logger.LogInformation("ScrapeAndPublish triggered at {Time}", DateTimeOffset.UtcNow);
 
